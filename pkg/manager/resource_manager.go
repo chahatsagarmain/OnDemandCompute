@@ -2,6 +2,7 @@ package manager
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
@@ -78,5 +79,16 @@ func PrintResource(r Resource) (error){
 	fmt.Printf("CPU COUNT: %v \n" , cpu)
 	fmt.Printf("CPU UTIL: %v \n" , cpuUtil)
 	fmt.Printf("RAM: %v \n" , ram)
+	return nil
+}
+
+func CheckPortAvailable(port string) (error) {
+	listener , err := net.Listen("tcp",":" + port)
+	if err != nil {
+		fmt.Printf("%v is busy\n",port)
+		return err
+	}
+	listener.Close()
+	fmt.Printf("%v is open",port)
 	return nil
 }
