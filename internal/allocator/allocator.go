@@ -18,6 +18,14 @@ type Allocator struct {
 	AllocatedContainerDiskSize uint64
 	ActiveContainers uint8
 	MaxContainers	uint8
+	RunningContainer map[string]ContainerInfo
+}
+
+type ContainerInfo struct {
+	CotainerId 	string
+	MemReserved uint64
+	DiskReserved uint64
+	CpuReserved  uint64
 }
 
 func NewAllocator(dc *runner.DockerClient) (*Allocator , error) {
@@ -69,7 +77,7 @@ func(m *Allocator) AllocateResource(sshPort string , resource rtypes.Unit) (bool
 }
 
 func(m *Allocator) allocateResourceToContainer(sshPort string , resource rtypes.Unit) (error) {
-	err := m.dockerClient.StartSSHContainer(sshPort , resource)
+	containerId , err := m.dockerClient.StartSSHContainer(sshPort , resource)
 	if err != nil{
 		return err
 	}
@@ -77,5 +85,29 @@ func(m *Allocator) allocateResourceToContainer(sshPort string , resource rtypes.
 	m.ActiveContainers += 1
 	m.AllocatedContainerDiskSize += resource.DiskRequired
 	m.AllocatedContainerMemory += resource.MemRequired
+	m.RunningContainer[containerId] = ContainerInfo{
+		CotainerId: containerId,
+		MemReserved: resource.MemRequired,
+		DiskReserved: resource.DiskRequired,
+		CpuReserved: uint64(resource.CpuRequired),
+	}
+	return nil
+}
+
+func(m *Allocator) DeleteResource(containerId string) (error) {
+	err := m.dockerClient.StopDockerContainer(containerId)
+	if err != nil {
+		return err
+	}
+	err = m.dockerClient.DeleteDockerContainer(containerId)
+	if err != nil {
+		return err
+	}
+	containterInfo := m.RunningContainer[containerId]
+	delete(m.RunningContainer , containerId)
+	m.TotalAvailableCpu += int(containterInfo.CpuReserved)
+	m.AllocatedContainerMemory -= containterInfo.MemReserved
+	m.AllocatedContainerDiskSize -= containterInfo.DiskReserved
+	m.ActiveContainers -= 1
 	return nil
 }
