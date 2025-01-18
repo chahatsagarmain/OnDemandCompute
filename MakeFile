@@ -1,0 +1,27 @@
+# Define variables
+PROTOC=protoc
+PROTO_SRC=message
+PROTO_OUT_DIR=./../proto-gen
+
+# Plugins
+PROTOC_GEN_GO = $(shell go env GOPATH)/bin/protoc-gen-go
+PROTOC_GEN_GO_GRPC = $(shell go env GOPATH)/bin/protoc-gen-go-grpc
+
+# Targets
+all: generate
+
+# Generate Go and gRPC code from proto file
+generate:
+	@if [ ! -d $(PROTO_OUT_DIR) ]; then mkdir -p $(PROTO_OUT_DIR); fi
+	$(PROTOC) --go_out=$(PROTO_OUT_DIR) --go-grpc_out=$(PROTO_OUT_DIR) $(PROTO_SRC)
+
+# Clean generated files
+clean:
+	rm -rf $(PROTO_OUT_DIR)
+
+# Install required plugins
+install:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+.PHONY: all generate clean install

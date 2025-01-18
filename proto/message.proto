@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+option go_package = "github.com/chahatsagarmain/OnDemandCompute/proto-gen/message";
+
+message ResourceReq {
+    uint64 mem_required = 1;
+    uint64 disk_required = 2;
+    int32  cpu_required = 3;
+    string ssh_port = 4;
+}
+
+message ResourceRes {
+    bool    done = 1;
+    string  message = 2;
+}
+
+message ContainerId {
+    string  id = 1;
+}
+
+service ResourceService {
+    rpc AllocateResource(ResourceReq) returns (ResourceRes) {};
+    rpc DeleteAllocatedResource(ContainerId) returns (ResourceRes) {};
+}

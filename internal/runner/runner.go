@@ -79,11 +79,11 @@ func (c DockerClient) PullSSHEnabledUbunutImage() (error){
 	return nil
 }
 
-func (c DockerClient) StartSSHContainer(sshPort string,requiredResource rtypes.Unit) (error){
+func (c DockerClient) StartSSHContainer(sshPort string,requiredResource rtypes.Unit) (string , error){
 	// default password is root
 	err := manager.CheckPortAvailable(sshPort)
 	if err != nil {
-		return fmt.Errorf("PORT %v is already taken",sshPort)
+		return "" , fmt.Errorf("PORT %v is already taken",sshPort)
 	}
 	portBindings := nat.PortMap{
         "22/tcp": []nat.PortBinding{
@@ -120,6 +120,7 @@ func (c DockerClient) StartSSHContainer(sshPort string,requiredResource rtypes.U
 	resp, err := c.Client.ContainerCreate(context.Background(), containerConfig, hostConfig, networkConfig, nil, containerName)
 	if err != nil {
 		log.Fatalf("Error creating container: %v", err)
+		return "" , err
 	}
 
 	fmt.Printf("Created container %s\n", resp.ID)
@@ -127,10 +128,11 @@ func (c DockerClient) StartSSHContainer(sshPort string,requiredResource rtypes.U
 	err = c.Client.ContainerStart(context.Background(), resp.ID, container.StartOptions{})
 	if err != nil {
 		log.Fatalf("Error starting container: %v", err)
+		return "" , nil
 	}
 
 	fmt.Printf("Container %s is running and SSH is available on port %v.\n", resp.ID , sshPort)
-	return nil
+	return resp.ID , nil
 
 }
 
@@ -159,6 +161,16 @@ func(c DockerClient) StopDockerContainer(containerId string) (error) {
 		return fmt.Errorf("error stoping container")
 	}
 	return err
+}
+
+func(c DockerClient) DeleteDockerContainer(containerId string) (error) {
+	err := c.Client.ContainerRemove(context.Background(),containerId,container.RemoveOptions{RemoveVolumes: true ,
+		RemoveLinks: true ,
+		Force: true})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func convertPort(ports []types.Port) []Port {
