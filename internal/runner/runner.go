@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/chahatsagarmain/OnDemandCompute/pkg/manager"
+	"github.com/chahatsagarmain/OnDemandCompute/pkg/rtypes"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -22,7 +23,7 @@ const (
 )
 
 type DockerClient struct {
-	client *client.Client
+	Client *client.Client
 }
 
 type ContainerInfo struct {
@@ -50,14 +51,14 @@ func InitDockerClient() (*DockerClient , error) {
 		return nil , err
 	}
 	return &DockerClient{
-		client: apiClient,
+		Client: apiClient,
 	} , nil
 }
 
 func (c DockerClient) PullSSHEnabledUbunutImage() (error){
 	
 	fmt.Println("pulling docker image")
-	reader , err := c.client.ImagePull(context.Background() , sshImage , image.PullOptions{})
+	reader , err := c.Client.ImagePull(context.Background() , sshImage , image.PullOptions{})
 	if err != nil {
 		fmt.Println("Error pulling image:", err)
 		return err
@@ -78,7 +79,7 @@ func (c DockerClient) PullSSHEnabledUbunutImage() (error){
 	return nil
 }
 
-func (c DockerClient) StartSSHContainer(sshPort string) (error){
+func (c DockerClient) StartSSHContainer(sshPort string,requiredResource rtypes.Unit) (error){
 	// default password is root
 	err := manager.CheckPortAvailable(sshPort)
 	if err != nil {
@@ -97,23 +98,33 @@ func (c DockerClient) StartSSHContainer(sshPort string) (error){
         ExposedPorts: nat.PortSet{
             "22/tcp": struct{}{},
         },
-    }
+    }	
+
+	// Storage limit is disabled for now because it needs enabling of 'pquota' on local system
 
     hostConfig := &container.HostConfig{
         PortBindings: portBindings,
+		Resources: container.Resources{
+			Memory: int64(requiredResource.MemRequired),
+			MemoryReservation: int64(requiredResource.MemRequired),
+			NanoCPUs: int64(requiredResource.CpuRequired),
+		},
+		//StorageOpt: map[string]string{
+		//	"size": fmt.Sprintf("%dG", requiredResource.DiskRequired / (1024 * 1024 * 1024)),
+		//},
     }
 
 	networkConfig := &network.NetworkingConfig{}
 
 	containerName := fmt.Sprintf("ssh-enabled-container-%v",time.Now().Unix())
-	resp, err := c.client.ContainerCreate(context.Background(), containerConfig, hostConfig, networkConfig, nil, containerName)
+	resp, err := c.Client.ContainerCreate(context.Background(), containerConfig, hostConfig, networkConfig, nil, containerName)
 	if err != nil {
 		log.Fatalf("Error creating container: %v", err)
 	}
 
 	fmt.Printf("Created container %s\n", resp.ID)
 
-	err = c.client.ContainerStart(context.Background(), resp.ID, container.StartOptions{})
+	err = c.Client.ContainerStart(context.Background(), resp.ID, container.StartOptions{})
 	if err != nil {
 		log.Fatalf("Error starting container: %v", err)
 	}
@@ -124,7 +135,7 @@ func (c DockerClient) StartSSHContainer(sshPort string) (error){
 }
 
 func(c DockerClient) GetContainerList() ([]ContainerInfo , error){
-	containerList , err := c.client.ContainerList(context.Background() , container.ListOptions{All: true})
+	containerList , err := c.Client.ContainerList(context.Background() , container.ListOptions{})
 	if err != nil {
 		return nil , err
 	}
@@ -140,6 +151,14 @@ func(c DockerClient) GetContainerList() ([]ContainerInfo , error){
 		}
 	}
 	return containerInfoList , err
+}
+
+func(c DockerClient) StopDockerContainer(containerId string) (error) {
+	err := c.Client.ContainerStop(context.Background(),containerId,container.StopOptions{})
+	if err != nil {
+		return fmt.Errorf("error stoping container")
+	}
+	return err
 }
 
 func convertPort(ports []types.Port) []Port {
