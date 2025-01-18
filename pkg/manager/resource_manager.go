@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
 )
@@ -16,19 +17,21 @@ const (
 
 
 type AvailableResource struct {
-	CpuCount uint8
+	CpuCount int
 	CpuUtilized 	float64
 	TotalMemSize uint64
 	AvailableMemSize uint64
+	TotalDiskSize uint64
+	AvailableDiskSize uint64
 }
 
 type Resource interface {
-	GetCpuCount()	(uint8 , error)
+	GetCpuCount()	(int , error)
 	GetMemSize()	(uint64 , error)
 	GetCpuUtilization() (float64 , error)
 }
 
-func (r AvailableResource) GetCpuCount() (uint8 , error){
+func (r AvailableResource) GetCpuCount() (int , error){
 	count , err := cpu.Counts(true)
 	if err != nil {
 		return 0 , err
@@ -36,7 +39,7 @@ func (r AvailableResource) GetCpuCount() (uint8 , error){
 	if count - reservedCpuCount <= 0 {
 		return 0 , nil
 	}
-	return uint8(count) , nil
+	return count , nil
 }
 
 func (r AvailableResource) GetMemSize() (uint64 , error) {
@@ -52,6 +55,19 @@ func (r AvailableResource) GetMemSize() (uint64 , error) {
 	return v.Available , nil
 }
 
+func (r AvailableResource) GetTotalMemSize() (uint64 , error) {
+	v , err := mem.VirtualMemory()
+
+	if err != nil {
+		return 0 , err
+	}
+
+	if v.Total - reservedMemSize <= 0 {
+		return 0 , nil
+	}
+	return v.Total , nil
+}
+
 func (r AvailableResource) GetCpuUtilization() (float64 , error) {
 	cpuUtil , err := cpu.Percent(0  , false)
 	for idx , val := range(cpuUtil) {
@@ -61,6 +77,22 @@ func (r AvailableResource) GetCpuUtilization() (float64 , error) {
 		return float64(0) , err
 	}
 	return cpuUtil[0] , nil
+}
+
+func (r AvailableResource) GetTotalDiskSize() (uint64 , error) {
+	diskSize , err := disk.Usage("/")
+	if err != nil {
+		return 0 , err
+	}
+	return diskSize.Total , nil
+}
+
+func (r AvailableResource) GetAvailableDiskSize() (uint64 , error) {
+	diskSize , err := disk.Usage("/")
+	if err != nil {
+		return 0 , err
+	}
+	return diskSize.Total , nil
 }
 
 func PrintResource(r Resource) (error){
