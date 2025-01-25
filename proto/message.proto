@@ -2,6 +2,8 @@ syntax = "proto3";
 
 option go_package = "github.com/chahatsagarmain/OnDemandCompute/proto-gen/message";
 
+import "google/api/annotations.proto";
+
 message ResourceReq {
     uint64 mem_required = 1;
     uint64 disk_required = 2;
@@ -18,7 +20,50 @@ message ContainerId {
     string  id = 1;
 }
 
+message ContainerIds {
+    repeated string id = 1;
+}
+
+message Port {
+    string portIP = 1;
+	string privatePort = 2;
+	string publicPort = 3;
+	string portType = 4;
+}
+
+message ContainerInfo {
+    string containerId = 1; 
+	string state = 2;
+	string status = 3;	
+	string image = 4;	
+	string imageId = 5;
+	repeated string ports = 6; 
+}
+
+message ContainerInfoRes {
+    repeated ContainerInfo Containers = 1;
+}
+
+message Empty {}
+
 service ResourceService {
-    rpc AllocateResource(ResourceReq) returns (ResourceRes) {};
-    rpc DeleteAllocatedResource(ContainerId) returns (ResourceRes) {};
+    rpc AllocateResource(ResourceReq) returns (ResourceRes) {
+        option (google.api.http) = {
+            post : "/v1/resource"
+            body: "*"
+        };
+    }
+    rpc DeleteAllocatedResource(ContainerId) returns (ResourceRes) {
+        option (google.api.http) = {
+            delete : "/v1/resource/{id}"
+            additional_bindings: {
+                get: "/v1/resource/{id}"
+            }
+        };
+    }
+    rpc GetAllocatedResources(Empty) returns (ContainerInfoRes) {
+        option (google.api.http) = {
+            get: "/v1/resource"
+        };
+    }
 }

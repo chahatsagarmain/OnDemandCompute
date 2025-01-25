@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	ResourceService_AllocateResource_FullMethodName        = "/ResourceService/AllocateResource"
 	ResourceService_DeleteAllocatedResource_FullMethodName = "/ResourceService/DeleteAllocatedResource"
+	ResourceService_GetAllocatedResources_FullMethodName   = "/ResourceService/GetAllocatedResources"
 )
 
 // ResourceServiceClient is the client API for ResourceService service.
@@ -29,6 +30,7 @@ const (
 type ResourceServiceClient interface {
 	AllocateResource(ctx context.Context, in *ResourceReq, opts ...grpc.CallOption) (*ResourceRes, error)
 	DeleteAllocatedResource(ctx context.Context, in *ContainerId, opts ...grpc.CallOption) (*ResourceRes, error)
+	GetAllocatedResources(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ContainerInfoRes, error)
 }
 
 type resourceServiceClient struct {
@@ -59,12 +61,23 @@ func (c *resourceServiceClient) DeleteAllocatedResource(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *resourceServiceClient) GetAllocatedResources(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ContainerInfoRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ContainerInfoRes)
+	err := c.cc.Invoke(ctx, ResourceService_GetAllocatedResources_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ResourceServiceServer is the server API for ResourceService service.
 // All implementations must embed UnimplementedResourceServiceServer
 // for forward compatibility.
 type ResourceServiceServer interface {
 	AllocateResource(context.Context, *ResourceReq) (*ResourceRes, error)
 	DeleteAllocatedResource(context.Context, *ContainerId) (*ResourceRes, error)
+	GetAllocatedResources(context.Context, *Empty) (*ContainerInfoRes, error)
 	mustEmbedUnimplementedResourceServiceServer()
 }
 
@@ -80,6 +93,9 @@ func (UnimplementedResourceServiceServer) AllocateResource(context.Context, *Res
 }
 func (UnimplementedResourceServiceServer) DeleteAllocatedResource(context.Context, *ContainerId) (*ResourceRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteAllocatedResource not implemented")
+}
+func (UnimplementedResourceServiceServer) GetAllocatedResources(context.Context, *Empty) (*ContainerInfoRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllocatedResources not implemented")
 }
 func (UnimplementedResourceServiceServer) mustEmbedUnimplementedResourceServiceServer() {}
 func (UnimplementedResourceServiceServer) testEmbeddedByValue()                         {}
@@ -138,6 +154,24 @@ func _ResourceService_DeleteAllocatedResource_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ResourceService_GetAllocatedResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourceServiceServer).GetAllocatedResources(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ResourceService_GetAllocatedResources_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourceServiceServer).GetAllocatedResources(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ResourceService_ServiceDesc is the grpc.ServiceDesc for ResourceService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +186,10 @@ var ResourceService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteAllocatedResource",
 			Handler:    _ResourceService_DeleteAllocatedResource_Handler,
+		},
+		{
+			MethodName: "GetAllocatedResources",
+			Handler:    _ResourceService_GetAllocatedResources_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
