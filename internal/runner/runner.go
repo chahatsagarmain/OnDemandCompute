@@ -27,38 +27,38 @@ type DockerClient struct {
 }
 
 type ContainerInfo struct {
-	ContainerId string 
-	State 		string
-	Status 		string
-	Image 		string
-	ImageId		string
-	Ports 		[]Port
+	ContainerId string
+	State       string
+	Status      string
+	Image       string
+	ImageId     string
+	Ports       []Port
 }
 
 type Port struct {
-	portIP string
+	portIP      string
 	privatePort uint16
-	publicPort uint16
-	portType string
+	publicPort  uint16
+	portType    string
 }
 
-func InitDockerClient() (*DockerClient , error) {
-	apiClient , err := client.NewClientWithOpts(
+func InitDockerClient() (*DockerClient, error) {
+	apiClient, err := client.NewClientWithOpts(
 		client.FromEnv,
 		client.WithAPIVersionNegotiation(),
 	)
 	if err != nil {
-		return nil , err
+		return nil, err
 	}
 	return &DockerClient{
 		Client: apiClient,
-	} , nil
+	}, nil
 }
 
-func (c DockerClient) PullSSHEnabledUbunutImage() (error){
-	
+func (c DockerClient) PullSSHEnabledUbunutImage() error {
+
 	fmt.Println("pulling docker image")
-	reader , err := c.Client.ImagePull(context.Background() , sshImage , image.PullOptions{})
+	reader, err := c.Client.ImagePull(context.Background(), sshImage, image.PullOptions{})
 	if err != nil {
 		fmt.Println("Error pulling image:", err)
 		return err
@@ -66,61 +66,61 @@ func (c DockerClient) PullSSHEnabledUbunutImage() (error){
 	decoder := json.NewDecoder(reader)
 	for {
 		var message map[string]interface{}
-        if err := decoder.Decode(&message); err != nil {
-            if err == io.EOF {
-                break
-            }
-            return err
-        }
-        if status, ok := message["status"]; ok {
-            fmt.Printf("\r%v\n", status)
-        }
+		if err := decoder.Decode(&message); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		if status, ok := message["status"]; ok {
+			fmt.Printf("\r%v\n", status)
+		}
 	}
 	return nil
 }
 
-func (c DockerClient) StartSSHContainer(sshPort string,requiredResource rtypes.Unit) (string , error){
+func (c DockerClient) StartSSHContainer(sshPort string, requiredResource rtypes.Unit) (string, error) {
 	// default password is root
 	err := manager.CheckPortAvailable(sshPort)
 	if err != nil {
-		return "" , fmt.Errorf("PORT %v is already taken",sshPort)
+		return "", fmt.Errorf("PORT %v is already taken", sshPort)
 	}
 	portBindings := nat.PortMap{
-        "22/tcp": []nat.PortBinding{
-            {
-                HostIP:   "0.0.0.0",
-                HostPort: sshPort,
-            },
-        },
-    }
+		"22/tcp": []nat.PortBinding{
+			{
+				HostIP:   "0.0.0.0",
+				HostPort: sshPort,
+			},
+		},
+	}
 	containerConfig := &container.Config{
-        Image: sshImage,
-        ExposedPorts: nat.PortSet{
-            "22/tcp": struct{}{},
-        },
-    }	
+		Image: sshImage,
+		ExposedPorts: nat.PortSet{
+			"22/tcp": struct{}{},
+		},
+	}
 
 	// Storage limit is disabled for now because it needs enabling of 'pquota' on local system
 
-    hostConfig := &container.HostConfig{
-        PortBindings: portBindings,
+	hostConfig := &container.HostConfig{
+		PortBindings: portBindings,
 		Resources: container.Resources{
-			Memory: int64(requiredResource.MemRequired),
+			Memory:            int64(requiredResource.MemRequired),
 			MemoryReservation: int64(requiredResource.MemRequired),
-			NanoCPUs: int64(requiredResource.CpuRequired),
+			NanoCPUs:          int64(requiredResource.CpuRequired),
 		},
 		//StorageOpt: map[string]string{
 		//	"size": fmt.Sprintf("%dG", requiredResource.DiskRequired / (1024 * 1024 * 1024)),
 		//},
-    }
+	}
 
 	networkConfig := &network.NetworkingConfig{}
 
-	containerName := fmt.Sprintf("ssh-enabled-container-%v",time.Now().Unix())
+	containerName := fmt.Sprintf("ssh-enabled-container-%v", time.Now().Unix())
 	resp, err := c.Client.ContainerCreate(context.Background(), containerConfig, hostConfig, networkConfig, nil, containerName)
 	if err != nil {
 		log.Fatalf("Error creating container: %v", err)
-		return "" , err
+		return "", err
 	}
 
 	fmt.Printf("Created container %s\n", resp.ID)
@@ -128,45 +128,45 @@ func (c DockerClient) StartSSHContainer(sshPort string,requiredResource rtypes.U
 	err = c.Client.ContainerStart(context.Background(), resp.ID, container.StartOptions{})
 	if err != nil {
 		log.Fatalf("Error starting container: %v", err)
-		return "" , nil
+		return "", nil
 	}
 
-	fmt.Printf("Container %s is running and SSH is available on port %v.\n", resp.ID , sshPort)
-	return resp.ID , nil
+	fmt.Printf("Container %s is running and SSH is available on port %v.\n", resp.ID, sshPort)
+	return resp.ID, nil
 
 }
 
-func(c DockerClient) GetContainerList() ([]ContainerInfo , error){
-	containerList , err := c.Client.ContainerList(context.Background() , container.ListOptions{})
+func (c DockerClient) GetContainerList() ([]ContainerInfo, error) {
+	containerList, err := c.Client.ContainerList(context.Background(), container.ListOptions{})
 	if err != nil {
-		return nil , err
+		return nil, err
 	}
-	containerInfoList := make([]ContainerInfo , len(containerList)) 
-	for idx , val := range(containerList) {
+	containerInfoList := make([]ContainerInfo, len(containerList))
+	for idx, val := range containerList {
 		containerInfoList[idx] = ContainerInfo{
 			ContainerId: val.ID,
-			Image: val.Image,
-			ImageId: val.ImageID,
-			Ports: convertPort(val.Ports),
-			State: val.State,
-			Status: val.Status,			
+			Image:       val.Image,
+			ImageId:     val.ImageID,
+			Ports:       convertPort(val.Ports),
+			State:       val.State,
+			Status:      val.Status,
 		}
 	}
-	return containerInfoList , err
+	return containerInfoList, err
 }
 
-func(c DockerClient) StopDockerContainer(containerId string) (error) {
-	fmt.Printf("%v",containerId)
-	err := c.Client.ContainerStop(context.Background(),containerId,container.StopOptions{})
+func (c DockerClient) StopDockerContainer(containerId string) error {
+	fmt.Printf("%v", containerId)
+	err := c.Client.ContainerStop(context.Background(), containerId, container.StopOptions{})
 	if err != nil {
-		return fmt.Errorf("error stoping container : %v",err)
+		return fmt.Errorf("error stoping container : %v", err)
 	}
 	return err
 }
 
-func(c DockerClient) DeleteDockerContainer(containerId string) (error) {
-	fmt.Printf("in delete docker %v",containerId)
-	err := c.Client.ContainerRemove(context.Background(),containerId,container.RemoveOptions{RemoveVolumes: true ,
+func (c DockerClient) DeleteDockerContainer(containerId string) error {
+	fmt.Printf("in delete docker %v", containerId)
+	err := c.Client.ContainerRemove(context.Background(), containerId, container.RemoveOptions{RemoveVolumes: true,
 		Force: true})
 	if err != nil {
 		return err
@@ -175,20 +175,20 @@ func(c DockerClient) DeleteDockerContainer(containerId string) (error) {
 }
 
 func convertPort(ports []types.Port) []Port {
-	portList := make([]Port,len(ports))
-	for idx , port := range(ports) {
+	portList := make([]Port, len(ports))
+	for idx, port := range ports {
 		portList[idx] = Port{
-			portIP: port.IP,
+			portIP:      port.IP,
 			privatePort: port.PrivatePort,
-			publicPort: port.PublicPort,
-			portType: port.Type,
+			publicPort:  port.PublicPort,
+			portType:    port.Type,
 		}
 	}
 
 	return portList
 }
 
-func (p Port) ToString() (string){
-	portStr := fmt.Sprintf("%v,%v,%v,%v",p.portIP,p.portType,p.privatePort,p.publicPort)
+func (p Port) ToString() string {
+	portStr := fmt.Sprintf("%v,%v,%v,%v", p.portIP, p.portType, p.privatePort, p.publicPort)
 	return portStr
 }

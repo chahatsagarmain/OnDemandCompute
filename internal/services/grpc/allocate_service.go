@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	minMemrequired = 1 * 1024 * 1024 * 1024
+	minMemrequired  = 1 * 1024 * 1024 * 1024
 	minDiskrequired = 50 * 1024 * 1024 * 1024
-	minCpurequired = 1
+	minCpurequired  = 1
 )
 
 type AllocateService struct {
@@ -22,17 +22,17 @@ type AllocateService struct {
 	message.UnimplementedResourceServiceServer
 }
 
-func NewAllocateService (allocator *allocator.Allocator) (*AllocateService){
+func NewAllocateService(allocator *allocator.Allocator) *AllocateService {
 	return &AllocateService{
 		allocator: allocator,
 	}
 }
 
-func (a *AllocateService) AllocateResource(_ context.Context ,res *message.ResourceReq) (*message.ResourceRes,error) {
+func (a *AllocateService) AllocateResource(_ context.Context, res *message.ResourceReq) (*message.ResourceRes, error) {
 	resourceRreq := rtypes.Unit{
-		MemRequired: res.MemRequired,
+		MemRequired:  res.MemRequired,
 		DiskRequired: res.DiskRequired,
-		CpuRequired: int(res.CpuRequired),
+		CpuRequired:  int(res.CpuRequired),
 	}
 	if resourceRreq.MemRequired == 0 {
 		resourceRreq.MemRequired = minMemrequired
@@ -46,79 +46,79 @@ func (a *AllocateService) AllocateResource(_ context.Context ,res *message.Resou
 	sshPort := res.SshPort
 	if sshPort == "" {
 		return &message.ResourceRes{
-			Done: false,
+			Done:    false,
 			Message: errors.New("no ssh port specified").Error(),
 		}, errors.New("no ssh port specified")
 	}
-	fmt.Printf("%v",resourceRreq)
-	allocated , err := a.allocator.AllocateResource(sshPort , resourceRreq)
+	fmt.Printf("%v", resourceRreq)
+	allocated, err := a.allocator.AllocateResource(sshPort, resourceRreq)
 	if err != nil {
 		return &message.ResourceRes{
-			Done: false,
+			Done:    false,
 			Message: err.Error(),
-		} , err
+		}, err
 	}
 
 	if !allocated {
 		return &message.ResourceRes{
-			Done: false,
+			Done:    false,
 			Message: "Requested resource couldnt be allocated",
-		} , nil
+		}, nil
 	}
 
 	return &message.ResourceRes{
-		Done: true,
-		Message: fmt.Sprintf("Allocated resource : use ssh root@localhost -p %v to connect to the instance",sshPort),
-	} , nil
+		Done:    true,
+		Message: fmt.Sprintf("Allocated resource : use ssh root@localhost -p %v to connect to the instance", sshPort),
+	}, nil
 }
 
-func (a *AllocateService) DeleteAllocatedResource(_ context.Context , res *message.ContainerId) (*message.ResourceRes , error) {
+func (a *AllocateService) DeleteAllocatedResource(_ context.Context, res *message.ContainerId) (*message.ResourceRes, error) {
 	containerId := res.Id
-	fmt.Printf("%v",containerId)
+	fmt.Printf("%v", containerId)
 	err := a.allocator.DeleteResource(containerId)
 	if err != nil {
 		return &message.ResourceRes{
-			Done: false,
+			Done:    false,
 			Message: err.Error(),
-		} , err
+		}, err
 	}
 	return &message.ResourceRes{
-		Done: true,
+		Done:    true,
 		Message: "Deleted Resource allocation",
-	} , nil
+	}, nil
 }
 
-func (a *AllocateService) GetAllocatedResources(_ context.Context ,_ *message.Empty) (*message.ContainerInfoRes , error) {
-	containerInfo , err := a.allocator.GetResources()
+func (a *AllocateService) GetAllocatedResources(_ context.Context, _ *message.Empty) (*message.ContainerInfoRes, error) {
+	containerInfo, err := a.allocator.GetResources()
 	if err != nil {
 		return &message.ContainerInfoRes{
 			Containers: make([]*message.ContainerInfo, 0),
-		} , err
+		}, err
 	}
 
 	return &message.ContainerInfoRes{
 		Containers: convertContainerInfo(containerInfo),
-	} , nil
+	}, nil
 }
 
-func convertContainerInfo(c []runner.ContainerInfo) ([]*message.ContainerInfo){
-	res := make([]*message.ContainerInfo,len(c))
-	for idx , val := range(c) {
+func convertContainerInfo(c []runner.ContainerInfo) []*message.ContainerInfo {
+	res := make([]*message.ContainerInfo, len(c))
+	for idx, val := range c {
 		res[idx] = &message.ContainerInfo{
 			ContainerId: val.ContainerId,
-			State: val.State,
-			Status: val.Status,
-			Image: val.Image,
-			ImageId: val.ImageId,
-			Ports: convertPorts(val.Ports),
+			State:       val.State,
+			Status:      val.Status,
+			Image:       val.Image,
+			ImageId:     val.ImageId,
+			Ports:       convertPorts(val.Ports),
 		}
 	}
 	return res
 }
 
-func convertPorts(p []runner.Port) ([]string){
-	ports := make([]string , len(p))
-	for idx , val := range(p) {
+func convertPorts(p []runner.Port) []string {
+	ports := make([]string, len(p))
+	for idx, val := range p {
 		ports[idx] = val.ToString()
 	}
 	return ports
