@@ -15,6 +15,18 @@ all: generate
 generate:
 	protoc --proto_path=./proto/ --go_out=./proto-gen --go-grpc_out=./proto-gen --grpc-gateway_out=./proto-gen --grpc-gateway_out=allow_delete_body=true:. ./**/message.proto
 
+.PHONY: lint-install
+lint-install:
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.63.4
+
+.PHONY: lint
+lint:
+	golangci-lint run
+
+.PHONY: fmt
+fmt:
+	go fmt ./...
+
 # Clean generated files
 clean:
 	rm -rf $(PROTO_OUT_DIR)

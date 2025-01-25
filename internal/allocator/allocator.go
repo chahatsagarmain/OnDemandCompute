@@ -7,78 +7,78 @@ import (
 )
 
 type Allocator struct {
-	dockerClient *runner.DockerClient
-	memoryManager *manager.AvailableResource
-	TotalMemory uint64
-	TotalDiskSize uint64
-	TotalCpu int
-	TotalAvailableCpu int
-	AllocatedContainerMemory uint64
+	dockerClient               *runner.DockerClient
+	memoryManager              *manager.AvailableResource
+	TotalMemory                uint64
+	TotalDiskSize              uint64
+	TotalCpu                   int
+	TotalAvailableCpu          int
+	AllocatedContainerMemory   uint64
 	AllocatedContainerDiskSize uint64
-	ActiveContainers uint8
-	MaxContainers	uint8
-	RunningContainer map[string]ContainerInfo
+	ActiveContainers           uint8
+	MaxContainers              uint8
+	RunningContainer           map[string]ContainerInfo
 }
 
 type ContainerInfo struct {
-	CotainerId 	string
-	MemReserved uint64
+	CotainerId   string
+	MemReserved  uint64
 	DiskReserved uint64
 	CpuReserved  uint64
 }
 
-func NewAllocator(dc *runner.DockerClient) (*Allocator , error) {
+func NewAllocator(dc *runner.DockerClient) (*Allocator, error) {
 	mManager := &manager.AvailableResource{}
-	totalRam , err := mManager.GetTotalMemSize()
+	totalRam, err := mManager.GetTotalMemSize()
 	if err != nil {
-		return nil , err
+		return nil, err
 	}
-	totalDisk , err := mManager.GetTotalDiskSize()
+	totalDisk, err := mManager.GetTotalDiskSize()
 	if err != nil {
-		return nil , err
+		return nil, err
 	}
-	totalCpu , err := mManager.GetCpuCount()
+	totalCpu, err := mManager.GetCpuCount()
 	if err != nil {
-		return nil , err
+		return nil, err
 	}
 	return &Allocator{
-		memoryManager: mManager,
-		dockerClient: dc,
-		TotalMemory: totalRam,
-		TotalDiskSize: totalDisk,
-		TotalCpu: totalCpu,
-		TotalAvailableCpu: totalCpu,
-		ActiveContainers: 0,
-		MaxContainers: 10,
-		AllocatedContainerMemory: 0,
+		memoryManager:              mManager,
+		dockerClient:               dc,
+		TotalMemory:                totalRam,
+		TotalDiskSize:              totalDisk,
+		TotalCpu:                   totalCpu,
+		TotalAvailableCpu:          totalCpu,
+		ActiveContainers:           0,
+		MaxContainers:              10,
+		AllocatedContainerMemory:   0,
 		AllocatedContainerDiskSize: 0,
-		RunningContainer: make(map[string]ContainerInfo),
-	} , nil
+		RunningContainer:           make(map[string]ContainerInfo),
+	}, nil
 }
 
-func(m *Allocator) AllocateResource(sshPort string , resource rtypes.Unit) (bool , error){
-	if m.ActiveContainers + 1 >= m.MaxContainers {
-		return false , nil
+func (m *Allocator) AllocateResource(sshPort string, resource rtypes.Unit) (bool, error) {
+	if m.ActiveContainers+1 >= m.MaxContainers {
+		return false, nil
 	}
-	if m.AllocatedContainerMemory + resource.MemRequired >= m.TotalMemory {
-		return false , nil
+	if m.AllocatedContainerMemory+resource.MemRequired >= m.TotalMemory {
+		return false, nil
 	}
-	if m.AllocatedContainerDiskSize + resource.DiskRequired >= m.TotalDiskSize {
-		return false , nil
+	if m.AllocatedContainerDiskSize+resource.DiskRequired >= m.TotalDiskSize {
+		return false, nil
 	}
-	if m.TotalAvailableCpu - resource.CpuRequired < 0 {
-		return false , nil
-	} 
-	err := m.allocateResourceToContainer(sshPort , resource)
+	if m.TotalAvailableCpu-resource.CpuRequired < 0 {
+		return false, nil
+	}
+	err := m.allocateResourceToContainer(sshPort, resource)
 	if err != nil {
-		return false , err
+		return false, err
 	}
-	return true , nil
+	return true, nil
 }
 
-func(m *Allocator) allocateResourceToContainer(sshPort string , resource rtypes.Unit) (error) {
-	containerId , err := m.dockerClient.StartSSHContainer(sshPort , resource)
-	if err != nil{
+func (m *Allocator) allocateResourceToContainer(sshPort string, resource rtypes.Unit) error {
+	containerId, err := m.dockerClient.StartSSHContainer(sshPort, resource)
+	if err != nil {
 		return err
 	}
 	m.TotalAvailableCpu -= resource.CpuRequired
@@ -86,15 +86,15 @@ func(m *Allocator) allocateResourceToContainer(sshPort string , resource rtypes.
 	m.AllocatedContainerDiskSize += resource.DiskRequired
 	m.AllocatedContainerMemory += resource.MemRequired
 	m.RunningContainer[containerId] = ContainerInfo{
-		CotainerId: containerId,
-		MemReserved: resource.MemRequired,
+		CotainerId:   containerId,
+		MemReserved:  resource.MemRequired,
 		DiskReserved: resource.DiskRequired,
-		CpuReserved: uint64(resource.CpuRequired),
+		CpuReserved:  uint64(resource.CpuRequired),
 	}
 	return nil
 }
 
-func(m *Allocator) DeleteResource(containerId string) (error) {
+func (m *Allocator) DeleteResource(containerId string) error {
 	err := m.dockerClient.StopDockerContainer(containerId)
 	if err != nil {
 		return err
@@ -104,7 +104,7 @@ func(m *Allocator) DeleteResource(containerId string) (error) {
 		return err
 	}
 	containterInfo := m.RunningContainer[containerId]
-	delete(m.RunningContainer , containerId)
+	delete(m.RunningContainer, containerId)
 	m.TotalAvailableCpu += int(containterInfo.CpuReserved)
 	m.AllocatedContainerMemory -= containterInfo.MemReserved
 	m.AllocatedContainerDiskSize -= containterInfo.DiskReserved
@@ -112,10 +112,10 @@ func(m *Allocator) DeleteResource(containerId string) (error) {
 	return nil
 }
 
-func(m *Allocator) GetResources() ([]runner.ContainerInfo,error) {
-	containerList , err := m.dockerClient.GetContainerList()
+func (m *Allocator) GetResources() ([]runner.ContainerInfo, error) {
+	containerList, err := m.dockerClient.GetContainerList()
 	if err != nil {
-		return nil , err
+		return nil, err
 	}
-	return containerList , err
+	return containerList, err
 }

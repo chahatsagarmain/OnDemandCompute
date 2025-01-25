@@ -21,7 +21,7 @@ func main() {
 	addr := "0.0.0.0:50051"
 	httpAddr := "0.0.0.0:8080"
 	logger := log.Default()
-	
+
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -35,7 +35,9 @@ func main() {
 
 		server := grpc.NewServer()
 		resource := manager.AvailableResource{}
-		manager.PrintResource(resource)
+		if err = manager.PrintResource(resource); err != nil {
+			logger.Fatalf("error checking for available resource : %v", err)
+		}
 
 		client, err := runner.InitDockerClient()
 		if err != nil {
@@ -83,6 +85,6 @@ func main() {
 			logger.Fatalf("HTTP gateway server stopped: %v\n", err)
 		}
 	}()
-	
+
 	wg.Wait()
 }
