@@ -1,7 +1,6 @@
 package allocator
 
 import (
-
 	"github.com/chahatsagarmain/OnDemandCompute/internal/runner"
 	"github.com/chahatsagarmain/OnDemandCompute/pkg/manager"
 	"github.com/chahatsagarmain/OnDemandCompute/pkg/rtypes"
@@ -53,6 +52,7 @@ func NewAllocator(dc *runner.DockerClient) (*Allocator , error) {
 		MaxContainers: 10,
 		AllocatedContainerMemory: 0,
 		AllocatedContainerDiskSize: 0,
+		RunningContainer: make(map[string]ContainerInfo),
 	} , nil
 }
 
@@ -110,4 +110,12 @@ func(m *Allocator) DeleteResource(containerId string) (error) {
 	m.AllocatedContainerDiskSize -= containterInfo.DiskReserved
 	m.ActiveContainers -= 1
 	return nil
+}
+
+func(m *Allocator) GetResources() ([]runner.ContainerInfo,error) {
+	containerList , err := m.dockerClient.GetContainerList()
+	if err != nil {
+		return nil , err
+	}
+	return containerList , err
 }

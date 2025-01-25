@@ -27,12 +27,12 @@ type DockerClient struct {
 }
 
 type ContainerInfo struct {
-	containerId string 
-	state 		string
-	status 		string
-	image 		string
-	imageId		string
-	ports 		[]Port
+	ContainerId string 
+	State 		string
+	Status 		string
+	Image 		string
+	ImageId		string
+	Ports 		[]Port
 }
 
 type Port struct {
@@ -144,28 +144,29 @@ func(c DockerClient) GetContainerList() ([]ContainerInfo , error){
 	containerInfoList := make([]ContainerInfo , len(containerList)) 
 	for idx , val := range(containerList) {
 		containerInfoList[idx] = ContainerInfo{
-			containerId: val.ID,
-			image: val.Image,
-			imageId: val.ImageID,
-			ports: convertPort(val.Ports),
-			state: val.State,
-			status: val.Status,			
+			ContainerId: val.ID,
+			Image: val.Image,
+			ImageId: val.ImageID,
+			Ports: convertPort(val.Ports),
+			State: val.State,
+			Status: val.Status,			
 		}
 	}
 	return containerInfoList , err
 }
 
 func(c DockerClient) StopDockerContainer(containerId string) (error) {
+	fmt.Printf("%v",containerId)
 	err := c.Client.ContainerStop(context.Background(),containerId,container.StopOptions{})
 	if err != nil {
-		return fmt.Errorf("error stoping container")
+		return fmt.Errorf("error stoping container : %v",err)
 	}
 	return err
 }
 
 func(c DockerClient) DeleteDockerContainer(containerId string) (error) {
+	fmt.Printf("in delete docker %v",containerId)
 	err := c.Client.ContainerRemove(context.Background(),containerId,container.RemoveOptions{RemoveVolumes: true ,
-		RemoveLinks: true ,
 		Force: true})
 	if err != nil {
 		return err
@@ -185,4 +186,9 @@ func convertPort(ports []types.Port) []Port {
 	}
 
 	return portList
+}
+
+func (p Port) ToString() (string){
+	portStr := fmt.Sprintf("%v,%v,%v,%v",p.portIP,p.portType,p.privatePort,p.publicPort)
+	return portStr
 }

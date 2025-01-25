@@ -2,10 +2,19 @@ package allocate_service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/chahatsagarmain/OnDemandCompute/internal/allocator"
+	"github.com/chahatsagarmain/OnDemandCompute/internal/runner"
 	"github.com/chahatsagarmain/OnDemandCompute/pkg/rtypes"
 	"github.com/chahatsagarmain/OnDemandCompute/proto-gen/github.com/chahatsagarmain/OnDemandCompute/proto-gen/message"
+)
+
+const (
+	minMemrequired = 1 * 1024 * 1024 * 1024
+	minDiskrequired = 50 * 1024 * 1024 * 1024
+	minCpurequired = 1
 )
 
 type AllocateService struct {
@@ -25,7 +34,23 @@ func (a *AllocateService) AllocateResource(_ context.Context ,res *message.Resou
 		DiskRequired: res.DiskRequired,
 		CpuRequired: int(res.CpuRequired),
 	}
+	if resourceRreq.MemRequired == 0 {
+		resourceRreq.MemRequired = minMemrequired
+	}
+	if resourceRreq.DiskRequired == 0 {
+		resourceRreq.DiskRequired = minDiskrequired
+	}
+	if resourceRreq.CpuRequired == 0 {
+		resourceRreq.CpuRequired = minCpurequired
+	}
 	sshPort := res.SshPort
+	if sshPort == "" {
+		return &message.ResourceRes{
+			Done: false,
+			Message: errors.New("no ssh port specified").Error(),
+		}, errors.New("no ssh port specified")
+	}
+	fmt.Printf("%v",resourceRreq)
 	allocated , err := a.allocator.AllocateResource(sshPort , resourceRreq)
 	if err != nil {
 		return &message.ResourceRes{
@@ -43,12 +68,13 @@ func (a *AllocateService) AllocateResource(_ context.Context ,res *message.Resou
 
 	return &message.ResourceRes{
 		Done: true,
-		Message: "Allocated resource",
+		Message: fmt.Sprintf("Allocated resource : use ssh root@localhost -p %v to connect to the instance",sshPort),
 	} , nil
 }
 
-func (a *AllocateService) DeleteResource(_ context.Context , res *message.ContainerId) (*message.ResourceRes , error) {
+func (a *AllocateService) DeleteAllocatedResource(_ context.Context , res *message.ContainerId) (*message.ResourceRes , error) {
 	containerId := res.Id
+	fmt.Printf("%v",containerId)
 	err := a.allocator.DeleteResource(containerId)
 	if err != nil {
 		return &message.ResourceRes{
@@ -60,4 +86,40 @@ func (a *AllocateService) DeleteResource(_ context.Context , res *message.Contai
 		Done: true,
 		Message: "Deleted Resource allocation",
 	} , nil
+}
+
+func (a *AllocateService) GetAllocatedResources(_ context.Context ,_ *message.Empty) (*message.ContainerInfoRes , error) {
+	containerInfo , err := a.allocator.GetResources()
+	if err != nil {
+		return &message.ContainerInfoRes{
+			Containers: make([]*message.ContainerInfo, 0),
+		} , err
+	}
+
+	return &message.ContainerInfoRes{
+		Containers: convertContainerInfo(containerInfo),
+	} , nil
+}
+
+func convertContainerInfo(c []runner.ContainerInfo) ([]*message.ContainerInfo){
+	res := make([]*message.ContainerInfo,len(c))
+	for idx , val := range(c) {
+		res[idx] = &message.ContainerInfo{
+			ContainerId: val.ContainerId,
+			State: val.State,
+			Status: val.Status,
+			Image: val.Image,
+			ImageId: val.ImageId,
+			Ports: convertPorts(val.Ports),
+		}
+	}
+	return res
+}
+
+func convertPorts(p []runner.Port) ([]string){
+	ports := make([]string , len(p))
+	for idx , val := range(p) {
+		ports[idx] = val.ToString()
+	}
+	return ports
 }
