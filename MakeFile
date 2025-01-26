@@ -13,7 +13,7 @@ all: generate
 # Generate Go and gRPC code from proto file
 .PHONY: generate
 generate:
-	protoc --proto_path=./proto/ --go_out=./proto-gen --go-grpc_out=./proto-gen --grpc-gateway_out=./proto-gen --grpc-gateway_out=allow_delete_body=true:. ./**/message.proto
+	protoc --proto_path=./proto/ --go_out=./ --go-grpc_out=./ --grpc-gateway_out=./ --grpc-gateway_out=allow_delete_body=true:. ./**/message.proto
 
 .PHONY: lint-install
 lint-install:
@@ -21,7 +21,7 @@ lint-install:
 
 .PHONY: lint
 lint:
-	golangci-lint run
+	golangci-lint run --exclude-generated --skip-dirs ./proto-gen 
 
 .PHONY: fmt
 fmt:
@@ -30,6 +30,10 @@ fmt:
 # Clean generated files
 clean:
 	rm -rf $(PROTO_OUT_DIR)
+
+.PHONY: run
+run:
+	go run ./cmd/app/main.go
 
 # Install required plugins
 install:

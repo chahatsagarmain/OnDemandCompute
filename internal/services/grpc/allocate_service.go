@@ -101,6 +101,19 @@ func (a *AllocateService) GetAllocatedResources(_ context.Context, _ *message.Em
 	}, nil
 }
 
+func (a *AllocateService) GetContainerStats(_ context.Context, cId *message.ContainerId) (*message.ContainerStatsRes, error) {
+	containerId := cId.Id
+	resp, err := a.allocator.GetResourceStat(containerId)
+	if err != nil {
+		return &message.ContainerStatsRes{
+			ContainerStats: "",
+		}, err
+	}
+	return &message.ContainerStatsRes{
+		ContainerStats: resp,
+	}, nil
+}
+
 func convertContainerInfo(c []runner.ContainerInfo) []*message.ContainerInfo {
 	res := make([]*message.ContainerInfo, len(c))
 	for idx, val := range c {

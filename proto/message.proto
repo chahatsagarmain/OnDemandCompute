@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/chahatsagarmain/OnDemandCompute/proto-gen/message";
+option go_package = "./github.com/chahatsagarmain/OnDemandCompute/proto-gen/message";
 
 import "google/api/annotations.proto";
 
@@ -44,6 +44,10 @@ message ContainerInfoRes {
     repeated ContainerInfo Containers = 1;
 }
 
+message ContainerStatsRes {
+    string containerStats = 1;
+}
+
 message Empty {}
 
 service ResourceService {
@@ -56,14 +60,16 @@ service ResourceService {
     rpc DeleteAllocatedResource(ContainerId) returns (ResourceRes) {
         option (google.api.http) = {
             delete : "/v1/resource/{id}"
-            additional_bindings: {
-                get: "/v1/resource/{id}"
-            }
         };
     }
     rpc GetAllocatedResources(Empty) returns (ContainerInfoRes) {
         option (google.api.http) = {
             get: "/v1/resource"
+        };
+    }
+    rpc GetContainerStats(ContainerId) returns (ContainerStatsRes) {
+        option (google.api.http) = {
+            get: "/v1/resource/{id}"
         };
     }
 }

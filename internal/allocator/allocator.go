@@ -119,3 +119,11 @@ func (m *Allocator) GetResources() ([]runner.ContainerInfo, error) {
 	}
 	return containerList, err
 }
+
+func (m *Allocator) GetResourceStat(containerId string) (string, error) {
+	resp, err := m.dockerClient.GetContainerStatus(containerId)
+	if err != nil {
+		return "", nil
+	}
+	return resp, nil
+}
