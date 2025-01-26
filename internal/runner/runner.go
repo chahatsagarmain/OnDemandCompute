@@ -165,13 +165,26 @@ func (c DockerClient) StopDockerContainer(containerId string) error {
 }
 
 func (c DockerClient) DeleteDockerContainer(containerId string) error {
-	fmt.Printf("in delete docker %v", containerId)
 	err := c.Client.ContainerRemove(context.Background(), containerId, container.RemoveOptions{RemoveVolumes: true,
 		Force: true})
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (c DockerClient) GetContainerStatus(containerId string) (string, error) {
+	resp, err := c.Client.ContainerStats(context.Background(), containerId, false)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return string(bodyBytes), nil
 }
 
 func convertPort(ports []types.Port) []Port {
