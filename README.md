@@ -33,3 +33,107 @@ with a JSON Request body as shown . This starts a instance on port 2225 .
         "sshPort" : "2225"
        }
  
+# OnDemandCompute REST API Documentation
+
+## Base URL
+
+```
+http://localhost:8080
+```
+
+---
+
+## **Allocate a Resource**
+
+### **POST** `/v1/resource`
+
+Allocates a new compute resource.
+
+### **Request Body (JSON)**
+
+```json
+{
+  "mem_required": 1024,
+  "disk_required": 20480,
+  "cpu_required": 2,
+  "ssh_port": "2225"
+}
+```
+
+### **Response Body (JSON)**
+
+```json
+{
+  "done": true,
+  "message": "Resource allocated successfully"
+}
+```
+
+---
+
+## **Delete an Allocated Resource**
+
+### **DELETE** `/v1/resource/{id}`
+
+Deletes an allocated compute resource.
+
+### **Path Parameter**
+
+- `id` (string) - The container ID of the resource to delete.
+
+### **Response Body (JSON)**
+
+```json
+{
+  "done": true,
+  "message": "Resource deleted successfully"
+}
+```
+
+---
+
+## **Get Allocated Resources**
+
+### **GET** `/v1/resource`
+
+Retrieves a list of currently allocated compute resources.
+
+### **Response Body (JSON)**
+
+```json
+{
+  "Containers": [
+    {
+      "containerId": "123456789",
+      "state": "running",
+      "status": "healthy",
+      "image": "ubuntu:latest",
+      "imageId": "sha256:abcd1234",
+      "ports": ["2225"]
+    }
+  ]
+}
+```
+
+---
+
+## **Get Container Statistics**
+
+### **GET** `/v1/resource/{id}`
+
+Fetches statistics of a specific container.
+
+### **Path Parameter**
+
+- `id` (string) - The container ID.
+
+### **Response Body (JSON)**
+
+```json
+{
+  "containerStats": "CPU: 10%, Memory: 512MB"
+}
+```
+
+---
+
