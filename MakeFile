@@ -13,7 +13,7 @@ all: generate
 # Generate Go and gRPC code from proto file
 .PHONY: generate
 generate:
-	protoc --proto_path=./proto/ --go_out=./ --go-grpc_out=./ --grpc-gateway_out=./ --grpc-gateway_out=allow_delete_body=true:. ./**/message.proto
+	protoc --proto_path=./proto/ --go_out=./ --go-grpc_out=./ --grpc-gateway_out=allow_delete_body=true:./ ./**/message.proto
 
 .PHONY: lint-install
 lint-install:

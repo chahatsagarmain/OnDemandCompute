@@ -43,7 +43,20 @@ func (a *AllocateService) AllocateResource(_ context.Context, res *message.Resou
 	if resourceRreq.CpuRequired == 0 {
 		resourceRreq.CpuRequired = minCpurequired
 	}
-	sshPort := res.SshPort
+	var portMappings []runner.PortMapping
+    for _, pm := range res.TargetPort {
+        portMappings = append(portMappings, runner.PortMapping{
+            HostPort:      pm.HostPort,
+            ContainerPort: pm.ContainerPort,
+        })
+    }
+	var sshPort string
+	for _ , val := range(portMappings){
+		if(val.ContainerPort == "22"){
+			sshPort = val.HostPort
+			break
+		}
+	}
 	if sshPort == "" {
 		return &message.ResourceRes{
 			Done:    false,
@@ -51,7 +64,7 @@ func (a *AllocateService) AllocateResource(_ context.Context, res *message.Resou
 		}, errors.New("no ssh port specified")
 	}
 	fmt.Printf("%v", resourceRreq)
-	allocated, err := a.allocator.AllocateResource(sshPort, resourceRreq)
+	allocated, err := a.allocator.AllocateResource(portMappings, resourceRreq)
 	if err != nil {
 		return &message.ResourceRes{
 			Done:    false,

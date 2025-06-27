@@ -42,6 +42,11 @@ type Port struct {
 	portType    string
 }
 
+type PortMapping struct {
+    HostPort      string // Port on the host
+    ContainerPort string // Port inside the container
+}
+
 func InitDockerClient() (*DockerClient, error) {
 	apiClient, err := client.NewClientWithOpts(
 		client.FromEnv,
@@ -57,10 +62,10 @@ func InitDockerClient() (*DockerClient, error) {
 
 func (c DockerClient) PullSSHEnabledUbunutImage() error {
 
-	fmt.Println("pulling docker image")
+	log.Println("pulling docker image")
 	reader, err := c.Client.ImagePull(context.Background(), sshImage, image.PullOptions{})
 	if err != nil {
-		fmt.Println("Error pulling image:", err)
+		log.Println("Error pulling image:", err)
 		return err
 	}
 	decoder := json.NewDecoder(reader)
@@ -73,69 +78,64 @@ func (c DockerClient) PullSSHEnabledUbunutImage() error {
 			return err
 		}
 		if status, ok := message["status"]; ok {
-			fmt.Printf("\r%v\n", status)
+			log.Printf("\r%v\n", status)
 		}
 	}
 	return nil
 }
 
-func (c DockerClient) StartSSHContainer(sshPort string, requiredResource rtypes.Unit) (string, error) {
-	// default password is root
-	err := manager.CheckPortAvailable(sshPort)
-	if err != nil {
-		return "", fmt.Errorf("PORT %v is already taken", sshPort)
-	}
-	portBindings := nat.PortMap{
-		"22/tcp": []nat.PortBinding{
-			{
-				HostIP:   "0.0.0.0",
-				HostPort: sshPort,
-			},
-		},
-	}
-	containerConfig := &container.Config{
-		Image: sshImage,
-		ExposedPorts: nat.PortSet{
-			"22/tcp": struct{}{},
-		},
-	}
+func (c DockerClient) StartSSHContainer(portMappings []PortMapping, requiredResource rtypes.Unit) (string, error) {
+    exposedPorts := nat.PortSet{}
+    portBindings := nat.PortMap{}
 
-	// Storage limit is disabled for now because it needs enabling of 'pquota' on local system
+    for _, mapping := range portMappings {
+        err := manager.CheckPortAvailable(mapping.HostPort)
+        if err != nil {
+            return "", fmt.Errorf("PORT %v is already taken", mapping.HostPort)
+        }
+        portKey := nat.Port(fmt.Sprintf("%s/tcp", mapping.ContainerPort))
+        exposedPorts[portKey] = struct{}{}
+        portBindings[portKey] = []nat.PortBinding{
+            {
+                HostIP:   "0.0.0.0",
+                HostPort: mapping.HostPort,
+            },
+        }
+    }
 
-	hostConfig := &container.HostConfig{
-		PortBindings: portBindings,
-		Resources: container.Resources{
-			Memory:            int64(requiredResource.MemRequired),
-			MemoryReservation: int64(requiredResource.MemRequired),
-			NanoCPUs:          int64(requiredResource.CpuRequired),
-		},
-		//StorageOpt: map[string]string{
-		//	"size": fmt.Sprintf("%dG", requiredResource.DiskRequired / (1024 * 1024 * 1024)),
-		//},
-	}
+    containerConfig := &container.Config{
+        Image:        sshImage,
+        ExposedPorts: exposedPorts,
+    }
 
-	networkConfig := &network.NetworkingConfig{}
+    hostConfig := &container.HostConfig{
+        PortBindings: portBindings,
+        Resources: container.Resources{
+            Memory:            int64(requiredResource.MemRequired),
+            MemoryReservation: int64(requiredResource.MemRequired),
+            NanoCPUs:          int64(requiredResource.CpuRequired),
+        },
+    }
 
-	containerName := fmt.Sprintf("ssh-enabled-container-%v", time.Now().Unix())
-	resp, err := c.Client.ContainerCreate(context.Background(), containerConfig, hostConfig, networkConfig, nil, containerName)
-	if err != nil {
-		log.Fatalf("Error creating container: %v", err)
-		return "", err
-	}
+    networkConfig := &network.NetworkingConfig{}
+    containerName := fmt.Sprintf("ssh-enabled-container-%v", time.Now().Unix())
+    resp, err := c.Client.ContainerCreate(context.Background(), containerConfig, hostConfig, networkConfig, nil, containerName)
+    if err != nil {
+        log.Printf("Error creating container: %v", err)
+        return "", err
+    }
 
-	fmt.Printf("Created container %s\n", resp.ID)
+    log.Printf("Created container %s\n", resp.ID)
 
-	err = c.Client.ContainerStart(context.Background(), resp.ID, container.StartOptions{})
-	if err != nil {
-		log.Fatalf("Error starting container: %v", err)
-		return "", nil
-	}
+    err = c.Client.ContainerStart(context.Background(), resp.ID, container.StartOptions{})
+    if err != nil {
+        log.Printf("Error starting container: %v", err)
+        return "", nil
+    }
 
-	fmt.Printf("Container %s is running and SSH is available on port %v.\n", resp.ID, sshPort)
-	return resp.ID, nil
-
+    log.Printf("Container %s is running and ports are mapped as specified.\n", resp.ID)
+    return resp.ID, nil
 }
-
 func (c DockerClient) GetContainerList() ([]ContainerInfo, error) {
 	containerList, err := c.Client.ContainerList(context.Background(), container.ListOptions{})
 	if err != nil {

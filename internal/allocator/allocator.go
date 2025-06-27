@@ -56,7 +56,7 @@ func NewAllocator(dc *runner.DockerClient) (*Allocator, error) {
 	}, nil
 }
 
-func (m *Allocator) AllocateResource(sshPort string, resource rtypes.Unit) (bool, error) {
+func (m *Allocator) AllocateResource(targetPort []runner.PortMapping, resource rtypes.Unit) (bool, error) {
 	if m.ActiveContainers+1 >= m.MaxContainers {
 		return false, nil
 	}
@@ -69,15 +69,15 @@ func (m *Allocator) AllocateResource(sshPort string, resource rtypes.Unit) (bool
 	if m.TotalAvailableCpu-resource.CpuRequired < 0 {
 		return false, nil
 	}
-	err := m.allocateResourceToContainer(sshPort, resource)
+	err := m.allocateResourceToContainer(targetPort, resource)
 	if err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-func (m *Allocator) allocateResourceToContainer(sshPort string, resource rtypes.Unit) error {
-	containerId, err := m.dockerClient.StartSSHContainer(sshPort, resource)
+func (m *Allocator) allocateResourceToContainer(targetPort []runner.PortMapping, resource rtypes.Unit) error {
+	containerId, err := m.dockerClient.StartSSHContainer(targetPort, resource)
 	if err != nil {
 		return err
 	}

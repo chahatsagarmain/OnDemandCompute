@@ -1,14 +1,19 @@
 syntax = "proto3";
 
-option go_package = "./github.com/chahatsagarmain/OnDemandCompute/proto-gen/message";
+option go_package = "./proto-gen/github.com/chahatsagarmain/OnDemandCompute/proto-gen/message";
 
 import "google/api/annotations.proto";
+
+message PortMapping {
+    string host_port = 1;
+    string container_port = 2;
+}
 
 message ResourceReq {
     uint64 mem_required = 1;
     uint64 disk_required = 2;
     int32  cpu_required = 3;
-    string ssh_port = 4;
+    repeated PortMapping target_port = 4;
 }
 
 message ResourceRes {

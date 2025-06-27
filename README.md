@@ -19,8 +19,9 @@ This project serves as a learning platform and a stepping stone in understanding
 ### Clone the repository 
  - Clone the repsository to your local system using the command 
  ```git clone https://github.com/chahatsagarmain/OnDemandCompute.git``` 
+- Install proto compiler on your local machine . 
 - Use makefile commands to locally run the project   
-```make -f Makefile run```
+```make -f MakeFile run```
 - The logger should should start logging in the terminal 
 - - gRPC api can also be used but its much easier to access using REST api
 - A instance of variable resource allocation can be created by simply sending a post request to
@@ -54,9 +55,18 @@ Allocates a new compute resource.
 ```json
 {
   "mem_required": 1024,
-  "disk_required": 20480,
-  "cpu_required": 2,
-  "ssh_port": "2225"
+  "disk_required": 2048,
+  "cpu_required": 1,
+  "target_port": [
+    {
+      "host_port": "2222",
+      "container_port": "22"
+    },
+    {
+      "host_port": "8081",
+      "container_port": "8080"
+    }
+  ]
 }
 ```
 
@@ -102,16 +112,19 @@ Retrieves a list of currently allocated compute resources.
 
 ```json
 {
-  "Containers": [
-    {
-      "containerId": "123456789",
-      "state": "running",
-      "status": "healthy",
-      "image": "ubuntu:latest",
-      "imageId": "sha256:abcd1234",
-      "ports": ["2225"]
-    }
-  ]
+    "Containers": [
+        {
+            "containerId": "706afeb4a65a743e99f9130be9207f9e7c1c17a8a72c81753082d7afd649ce1f",
+            "state": "running",
+            "status": "Up 3 seconds",
+            "image": "rastasheep/ubuntu-sshd:latest",
+            "imageId": "sha256:49533628fb371c9f1952c06cedf912c78a81fbe3914901334673c369376e077e",
+            "ports": [
+                "0.0.0.0,tcp,22,2223",
+                "0.0.0.0,tcp,8080,7777"
+            ]
+        },
+    ]
 }
 ```
 
